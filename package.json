@@ -1,0 +1,37 @@
+{
+  "name": "mythos",
+  "version": "1.0.0.0",
+  "description": "Mythos ⟁ Ascendant — Fifty Names from the First Error. A WhatsApp bot built on @itsliaaa/baileys.",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "pair": "node src/index.js --pair",
+    "smoke": "node scripts/smoke.js",
+    "render": "node scripts/render-sample.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "baileys",
+    "interactive",
+    "buttons"
+  ],
+  "author": "Mythos Labs",
+  "license": "MIT",
+  "dependencies": {
+    "@itsliaaa/baileys": "^0.3.18-final",
+    "axios": "^1.18.1",
+    "better-sqlite3": "^12.11.1",
+    "dotenv": "^16.4.5",
+    "node-cache": "^5.1.2",
+    "pino": "^9.5.0",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
+    "wa-sticker-formatter": "^2.1.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

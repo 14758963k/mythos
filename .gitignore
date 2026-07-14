@@ -1,0 +1,8 @@
+node_modules/
+auth_info/
+src/data/*.json
+src/data/*.db
+src/data/*.log
+.env
+*.log
+research/

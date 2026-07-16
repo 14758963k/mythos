@@ -64,7 +64,7 @@ const startSock = async (sockRef) => {
       keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })),
     },
     browser: Browsers.ubuntu('Mythos Ascendant'),
-    printQRInTerminal: !config.auth.pairing,
+    printQRInTerminal: false,
     generateHighQualityLinkPreview: true,
     cachedGroupMetadata: async (jid) => groupCache.get(jid),
     markOnlineOnConnect: true,
@@ -72,8 +72,6 @@ const startSock = async (sockRef) => {
     keepAliveIntervalMs: 25000,
     connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: undefined,
-    syncFullHistory: false,
-    emitOwnEvents: false,
     retryRequestDelayMs: 250,
     maxMsgRetryCount: 5,
     uploadTimeoutMs: 60000,
@@ -137,12 +135,15 @@ const startSock = async (sockRef) => {
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    // ── pairing code (official @itsliaaa/baileys pattern) ────────────
-    // Triggered on 'connecting' with unregistered auth, BEFORE QR fires
-    if (connection === 'connecting' && !sock.authState.creds.registered && config.auth.pairing) {
-      await delay(1500);
+    // log every connection state for debugging
+    log.info('connection.update', { connection, qr: !!qr, reason: lastDisconnect?.error?.output?.statusCode });
+
+    // ── pairing code ──────────────────────────────────────────────────
+    // Request pairing code when QR arrives (noise handshake is complete at this point)
+    if (qr && config.auth.pairing && !sock.authState.creds.registered) {
       try {
-        const code = await sock.requestPairingCode(config.auth.number);
+        log.info('requesting pairing code for', { number: config.owner.number });
+        const code = await sock.requestPairingCode(config.owner.number);
         console.log('\n╔═══════════════════════════════════════╗');
         console.log('║       ⟁ MYTHOS PAIRING CODE ⟁        ║');
         console.log('╠═══════════════════════════════════════╣');
@@ -154,6 +155,7 @@ const startSock = async (sockRef) => {
       } catch (e) {
         log.err('pairing code request failed', { error: e.message });
       }
+      return;
     }
 
     // ── QR fallback (non-pairing mode) ───────────────────────────────

@@ -56,6 +56,8 @@ const startSock = async (sockRef) => {
   const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
 
   const isFreshAuth = !state.creds.registered;
+  let pairingCodeDisplayed = false;
+
   const sock = makeWASocket({
     version,
     logger: pino({ level: config.logLevel }),
@@ -64,16 +66,13 @@ const startSock = async (sockRef) => {
       keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })),
     },
     browser: Browsers.ubuntu('Mythos Ascendant'),
-    printQRInTerminal: !config.auth.pairing,
+    printQRInTerminal: false,
     generateHighQualityLinkPreview: true,
     cachedGroupMetadata: async (jid) => groupCache.get(jid),
     markOnlineOnConnect: true,
     getMessage: async () => undefined,
     keepAliveIntervalMs: 25000,
   });
-
-  // Store for pairing code request (done after connection opens)
-  sock._isFreshAuth = isFreshAuth;
 
   sockRef.current = sock;
   sock._groupCache = groupCache;
@@ -132,23 +131,18 @@ const startSock = async (sockRef) => {
   // ── connection lifecycle ───────────────────────────────────────────
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
-    if (qr && config.auth.printQR) {
-      qrcode.generate(qr, { small: true });
-      log.info('QR generated — scan with WhatsApp Linked Devices');
-    }
-    if (connection === 'open') {
-      log.ok('connection opened', { user: sock.user?.id });
-      reconnectAttempts = 0;
 
-      // ── pairing code (fresh auth with PAIRING_NUMBER set) ──────────
-      if (sock._isFreshAuth && config.auth.pairing) {
-        sock._isFreshAuth = false;
+    // ── QR / pairing code ──────────────────────────────────────────
+    if (qr) {
+      if (isFreshAuth && config.auth.pairing && !pairingCodeDisplayed) {
+        // Request pairing code instead of showing QR
+        pairingCodeDisplayed = true;
         try {
           const code = await sock.requestPairingCode(config.auth.number);
           console.log('\n╔═══════════════════════════════════════╗');
           console.log('║       ⟁ MYTHOS PAIRING CODE ⟁        ║');
           console.log('╠═══════════════════════════════════════╣');
-          console.log(`║  ${code}  ║`);
+          console.log(`║     ${code}     ║`);
           console.log('╠═══════════════════════════════════════╣');
           console.log('║  Open WhatsApp → Linked Devices       ║');
           console.log('║  → Link a Device → Enter code above   ║');
@@ -156,8 +150,15 @@ const startSock = async (sockRef) => {
         } catch (e) {
           log.err('pairing code request failed', { error: e.message });
         }
-        return;
+      } else if (!config.auth.pairing) {
+        // Show QR in terminal
+        qrcode.generate(qr, { small: true });
+        log.info('QR generated — scan with WhatsApp Linked Devices');
       }
+    }
+    if (connection === 'open') {
+      log.ok('connection opened', { user: sock.user?.id });
+      reconnectAttempts = 0;
 
       // keepalive heartbeat — send presence every 25s to prevent timeout
       if (autoTypingInterval) clearInterval(autoTypingInterval);

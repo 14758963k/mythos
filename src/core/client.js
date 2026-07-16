@@ -72,22 +72,8 @@ const startSock = async (sockRef) => {
     keepAliveIntervalMs: 25000,
   });
 
-  // ── pairing code (fresh auth with PAIRING_NUMBER set) ─────────────
-  if (isFreshAuth && config.auth.pairing) {
-    try {
-      const code = await sock.requestPairingCode(config.auth.number);
-      console.log('\n╔═══════════════════════════════════════╗');
-      console.log('║       ⟁ MYTHOS PAIRING CODE ⟁        ║');
-      console.log('╠═══════════════════════════════════════╣');
-      console.log(`║  ${code}  ║`);
-      console.log('╠═══════════════════════════════════════╣');
-      console.log('║  Open WhatsApp → Linked Devices       ║');
-      console.log('║  → Link a Device → Enter code above   ║');
-      console.log('╚═══════════════════════════════════════╝\n');
-    } catch (e) {
-      log.err('pairing code request failed', { error: e.message });
-    }
-  }
+  // Store for pairing code request (done after connection opens)
+  sock._isFreshAuth = isFreshAuth;
 
   sockRef.current = sock;
   sock._groupCache = groupCache;
@@ -153,6 +139,25 @@ const startSock = async (sockRef) => {
     if (connection === 'open') {
       log.ok('connection opened', { user: sock.user?.id });
       reconnectAttempts = 0;
+
+      // ── pairing code (fresh auth with PAIRING_NUMBER set) ──────────
+      if (sock._isFreshAuth && config.auth.pairing) {
+        sock._isFreshAuth = false;
+        try {
+          const code = await sock.requestPairingCode(config.auth.number);
+          console.log('\n╔═══════════════════════════════════════╗');
+          console.log('║       ⟁ MYTHOS PAIRING CODE ⟁        ║');
+          console.log('╠═══════════════════════════════════════╣');
+          console.log(`║  ${code}  ║`);
+          console.log('╠═══════════════════════════════════════╣');
+          console.log('║  Open WhatsApp → Linked Devices       ║');
+          console.log('║  → Link a Device → Enter code above   ║');
+          console.log('╚═══════════════════════════════════════╝\n');
+        } catch (e) {
+          log.err('pairing code request failed', { error: e.message });
+        }
+        return;
+      }
 
       // keepalive heartbeat — send presence every 25s to prevent timeout
       if (autoTypingInterval) clearInterval(autoTypingInterval);

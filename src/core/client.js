@@ -66,8 +66,9 @@ const startSock = async (sockRef) => {
     printQRInTerminal: false,
     generateHighQualityLinkPreview: true,
     cachedGroupMetadata: async (jid) => groupCache.get(jid),
-    markOnlineOnConnect: false,
+    markOnlineOnConnect: true,
     getMessage: async () => undefined,
+    keepAliveIntervalMs: 25000,
   });
 
   sockRef.current = sock;
@@ -135,24 +136,35 @@ const startSock = async (sockRef) => {
       log.ok('connection opened', { user: sock.user?.id });
       reconnectAttempts = 0;
 
+      // keepalive heartbeat — send presence every 25s to prevent timeout
+      if (autoTypingInterval) clearInterval(autoTypingInterval);
+      autoTypingInterval = setInterval(() => {
+        sock.sendPresenceUpdate('available').catch(() => {});
+      }, 25000);
+
+      // defer heavy work 3s after connect to avoid flooding the fresh connection
+      setTimeout(async () => {
+        // notify owners
+        const owners = config.owner.jids;
+        if (owners.length) {
+          for (const jid of owners) {
+            try {
+              await sock.sendMessage(jid, {
+                text:
+                  `⟁ Mythos is online.\n` +
+                  `  ↳ prefix *${config.bot.prefix}*\n` +
+                  `  ↳ type *${config.bot.prefix}menu* to begin.`,
+              });
+            } catch (e) {
+              log.warn('owner notify failed', { jid, err: e.message });
+            }
+          }
+        }
+      }, 3000);
+
       // only create intervals once — not on every reconnect
       if (!intervalsInitialized) {
         intervalsInitialized = true;
-
-        // auto-typing indicator
-        autoTypingInterval = setInterval(async () => {
-          try {
-            const bot = require('./store').get('bot');
-            if (bot.autoTyping) {
-              const groups = require('./store').get('groups');
-              for (const [jid, g] of Object.entries(groups)) {
-                if (g.botEnabled !== false) {
-                  await sock.sendPresenceUpdate('composing', jid).catch(() => {});
-                }
-              }
-            }
-          } catch {}
-        }, 30000);
 
         // auto-recording indicator
         autoRecordingInterval = setInterval(async () => {
@@ -182,22 +194,6 @@ const startSock = async (sockRef) => {
           };
           updateBio();
           autoBioInterval = setInterval(updateBio, 5 * 60 * 1000);
-        }
-      }
-      // notify owners
-      const owners = config.owner.jids;
-      if (owners.length) {
-        for (const jid of owners) {
-          try {
-            await sock.sendMessage(jid, {
-              text:
-                `⟁ Mythos is online.\n` +
-                `  ↳ prefix *${config.bot.prefix}*\n` +
-                `  ↳ type *${config.bot.prefix}menu* to begin.`,
-            });
-          } catch (e) {
-            log.warn('owner notify failed', { jid, err: e.message });
-          }
         }
       }
     }

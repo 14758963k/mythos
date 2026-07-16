@@ -1,160 +1,153 @@
-const { reply } = require('../../helpers/messages');
+/**
+ * Fun social commands — ship, wouldyourather,compatibility, roast, compliment.
+ */
+
+const { reply, sendQuickReply } = require('../../helpers/messages');
 const { S } = require('../../helpers/formatter');
 
-const SHIPS = [
-  'Soulmates', 'Eternal Love', 'Destined', 'Burning Passion', 'Deep Connection',
-  'Karmic Bond', 'True Love', 'Fated', 'Heartbound', 'Twinned Flames',
-  'Serenade', 'Enchantment', 'Blissful', 'Harmonious', 'Inseparable',
-  'Passionate', 'Romantic', 'Tender', 'Playful', 'Adventurous',
+const WYR = [
+  'Be able to fly or be invisible?',
+  'Live without music or live without movies?',
+  'Have unlimited money or unlimited time?',
+  'Be famous or be rich?',
+  'Read minds or see the future?',
+  'Be strong or be fast?',
+  'Live in the past or live in the future?',
+  'Have a rewind button or a pause button for life?',
+  'Be the funniest or the smartest person in the room?',
+  'Always be 10 minutes late or always be 20 minutes early?',
+  'Give up social media or give up takeaway food?',
+  'Have a personal chef or a personal driver?',
+  'Know how you die or know when you die?',
+  'Have super strength or super speed?',
+  'Be able to talk to animals or speak every human language?',
 ];
 
-const getShipScore = (n1, n2) => {
-  let hash = 0;
-  const combined = (n1 + n2).toLowerCase();
-  for (let i = 0; i < combined.length; i++) {
-    hash = ((hash << 5) - hash) + combined.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash) % 101;
-};
+const ROASTS = [
+  'You bring everyone a lot of joy... when you leave.',
+  'If you were any more inbred, you would be a sandwich.',
+  "I'd agree with you, but then we'd both be wrong.",
+  'You have the perfect face for radio.',
+  'You are proof that evolution can go in reverse.',
+  "I'm jealous of people who don't know you.",
+  "You're like a cloud. When you disappear, it's a beautiful day.",
+  'If brains were dynamite, you would not have enough to blow your nose.',
+  'You have something on your chin... the third one.',
+  'I thought of you today. It reminded me to take out the trash.',
+];
 
-const getBar = (pct) => {
-  const full = Math.floor(pct / 10);
-  return S.bar.repeat(full) + S.thinBar.repeat(10 - full);
-};
+const COMPLIMENTS = [
+  'You have a great sense of humor.',
+  'You light up the room.',
+  'Your smile is contagious.',
+  'You have the best laugh.',
+  'You are making a difference.',
+  'Your kindness is a blessing.',
+  'You have a great sense of style.',
+  'You are enough just as you are.',
+  'Your creativity is inspiring.',
+  'You make a positive impact.',
+];
+
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 module.exports = [
   {
-    name: 'ship',
-    aliases: ['love', 'marry'],
+    name: 'wyr',
+    aliases: ['wouldyourather', 'would'],
     category: 'fun',
-    description: 'Ship two people',
+    description: 'Would you rather?',
     execute: async (ctx) => {
-      let p1, p2;
-      const mentions = ctx.msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-      if (mentions.length >= 2) {
-        p1 = mentions[0].split('@')[0];
-        p2 = mentions[1].split('@')[0];
-      } else if (mentions.length === 1 && ctx.args.length > 0) {
-        p1 = ctx.pushName || 'You';
-        p2 = mentions[0].split('@')[0];
-      } else if (ctx.args.length >= 2) {
-        p1 = ctx.args[0];
-        p2 = ctx.args[1];
-      } else {
-        p1 = ctx.pushName || 'You';
-        p2 = 'Mythos';
+      const q1 = pick(WYR);
+      let q2 = pick(WYR);
+      while (q2 === q1) q2 = pick(WYR);
+      await reply(ctx.sock, ctx,
+        `${S.brandLine}\n${S.ultraBar}\n${S.sub}  Would You Rather\n${S.heavyBar}\n\n` +
+        `  ${S.dot} A: ${q1}\n\n  ${S.dot} B: ${q2}\n\n${S.divider}\n` +
+        `  Reply *A* or *B*\n${S.brandLine}`
+      );
+    },
+  },
+  {
+    name: 'roast',
+    category: 'fun',
+    description: 'Get roasted by the bot',
+    execute: async (ctx) => {
+      const target = ctx.msg.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
+      const name = target ? `@${target.split('@')[0]}` : ctx.pushName || 'you';
+      await reply(ctx.sock, ctx,
+        `${S.brandLine}\n${S.sub}  Roast\n${S.heavyBar}\n  ${pick(ROASTS)}\n${S.brandLine}`,
+        { mentions: target ? [target] : [] }
+      );
+    },
+  },
+  {
+    name: 'compliment',
+    aliases: ['nice', 'praise'],
+    category: 'fun',
+    description: 'Get a compliment from the bot',
+    execute: async (ctx) => {
+      await reply(ctx.sock, ctx,
+        `${S.brandLine}\n${S.sub}  Compliment\n${S.heavyBar}\n  ${pick(COMPLIMENTS)}\n${S.brandLine}`
+      );
+    },
+  },
+  {
+    name: 'ship',
+    aliases: ['love', 'compat'],
+    category: 'fun',
+    description: 'Check love compatibility between two people',
+    execute: async (ctx) => {
+      const mentioned = ctx.msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+      if (mentioned.length < 2 && ctx.args.length < 2) {
+        return reply(ctx.sock, ctx, `${S.warn} Tag two people: *${ctx.prefix}ship @user1 @user2*`);
       }
-      const score = getShipScore(p1, p2);
-      const ship = SHIPS[Math.floor(Math.random() * SHIPS.length)];
-      const hearts = Math.round(score / 10);
-      const heartStr = S.heart.repeat(hearts) + S.outStar.repeat(10 - hearts);
-      const verdict = score > 80 ? 'Perfect match!' : score > 60 ? 'Great chemistry!' : score > 40 ? 'Not bad!' : score > 20 ? 'Could work...' : 'Not meant to be';
+      const p1 = mentioned[0] ? `@${mentioned[0].split('@')[0]}` : ctx.args[0] || 'Person 1';
+      const p2 = mentioned[1] ? `@${mentioned[1].split('@')[0]}` : ctx.args[1] || 'Person 2';
+      const score = Math.floor(Math.random() * 100) + 1;
+      const hearts = score > 70 ? '♥♥♥♥♥' : score > 50 ? '♥♥♥♥' : score > 30 ? '♥♥♥' : score > 10 ? '♥♥' : '♥';
+      const verdict = score > 80 ? 'Perfect match!' : score > 60 ? 'Great chemistry!' : score > 40 ? 'Possible spark...' : score > 20 ? 'Just friends?' : 'Not meant to be.';
 
       await reply(ctx.sock, ctx,
-        `${S.brandLine}\n${S.ultraBar}\n${S.sub}  Ship ${S.arr} ${p1} ${S.heart} ${p2}\n${S.heavyBar}\n\n` +
-        `  ${S.tri} Score ${S.arr} *${score}%*\n` +
-        `  ${S.tri} ${heartStr}\n` +
-        `  ${S.tri} Status ${S.arr} *${ship}*\n` +
-        `  ${S.tri} ${verdict}\n\n${S.brandLine}`
+        `${S.brandLine}\n${S.ultraBar}\n${S.sub}  Love Calculator\n${S.heavyBar}\n\n` +
+        `  ${S.dot} ${p1} ${S.heart} ${p2}\n\n` +
+        `  ${hearts}\n\n` +
+        `  ${S.dot} Compatibility ${S.arr} *${score}%*\n` +
+        `  ${S.dot} ${verdict}\n${S.brandLine}`,
+        { mentions: [...mentioned] }
       );
     },
   },
   {
-    name: 'flirt',
+    name: 'rate',
     category: 'fun',
-    description: 'Send a flirt message',
+    description: 'Rate something on a scale of 1-10',
     execute: async (ctx) => {
-      const flirts = [
-        'Are you a magician? Because whenever I look at you, everyone else disappears.',
-        'Do you have a map? I keep getting lost in your eyes.',
-        'Are you a campfire? Because you are hot and I want s\'mores.',
-        'Is your name Google? Because you have everything I\'m searching for.',
-        'Do you believe in love at first sight, or should I walk by again?',
-        'Are you a parking ticket? Because you\'ve got FINE written all over you.',
-        'If you were a vegetable, you\'d be a cute-cumber.',
-        'Do you have a sunburn, or are you always this hot?',
-        'Is there an airport nearby, or is that just my heart taking off?',
-        'Can you take a picture? I want to show my friends what an angel looks like.',
-      ];
+      const subject = ctx.args.join(' ') || 'this';
+      const score = Math.floor(Math.random() * 10) + 1;
+      const bar = '█'.repeat(score) + '░'.repeat(10 - score);
       await reply(ctx.sock, ctx,
-        `${S.brandLine}\n${S.sub}  Flirt\n${S.heavyBar}\n  ${flirts[Math.floor(Math.random() * flirts.length)]}\n${S.brandLine}`
+        `${S.brandLine}\n${S.sub}  Rate\n${S.heavyBar}\n` +
+        `  ${S.dot} ${subject} ${S.arr} *${score}*/10\n` +
+        `  ${S.dot} [${bar}]\n${S.brandLine}`
       );
     },
   },
   {
-    name: 'insult',
-    aliases: ['roast'],
+    name: 'choose',
+    aliases: ['pick'],
     category: 'fun',
-    description: 'Generate a playful roast',
+    description: 'Choose between options separated by |',
     execute: async (ctx) => {
-      const insults = [
-        'You\'re the reason God created the middle finger.',
-        'If you were any more inbred, you\'d be a sandwich.',
-        'You bring everyone a lot of joy... when you leave.',
-        'I\'d agree with you, but then we\'d both be wrong.',
-        'You\'re like a cloud. When you disappear, it\'s a beautiful day.',
-        'I\'m jealous of people who don\'t know you.',
-        'You have the right to remain silent. Please use it.',
-        'If stupidity was a sport, you\'d be an Olympian.',
-        'Your face is perfectly designed for a mask.',
-        'Somewhere out there, a tree is producing oxygen for you. I\'m sorry, tree.',
-      ];
+      const input = ctx.args.join(' ');
+      if (!input) return reply(ctx.sock, ctx, `${S.warn} Usage: *${ctx.prefix}choose option1 | option2 | option3*`);
+      const options = input.split('|').map(s => s.trim()).filter(Boolean);
+      if (options.length < 2) return reply(ctx.sock, ctx, `${S.warn} Provide at least 2 options separated by |`);
+      const chosen = pick(options);
       await reply(ctx.sock, ctx,
-        `${S.brandLine}\n${S.sub}  Roast\n${S.heavyBar}\n  ${insults[Math.floor(Math.random() * insults.length)]}\n${S.brandLine}`
-      );
-    },
-  },
-  {
-    name: 'pickup',
-    aliases: ['pickupline', 'rizz'],
-    category: 'fun',
-    description: 'Get a pickup line',
-    execute: async (ctx) => {
-      const lines = [
-        'Are you WiFi? Because I\'m feeling a connection.',
-        'Did it hurt? When you fell from heaven?',
-        'Do you have a Band-Aid? I scraped my knee falling for you.',
-        'Are you a light switch? Because you just turned me on.',
-        'Do you believe in fate? Because I think we\'re written in the stars.',
-        'If you were a tear drop, I\'d never cry for fear of losing you.',
-        'Your hand looks heavy. Can I hold it for you?',
-        'I must be a snowflake, because I\'ve fallen for you.',
-        'Are you a camera? Because every time I look at you, I smile.',
-        'Even if there was gravity on Earth, I\'d still fall for you.',
-      ];
-      await reply(ctx.sock, ctx,
-        `${S.brandLine}\n${S.sub}  Pickup Line\n${S.heavyBar}\n  ${lines[Math.floor(Math.random() * lines.length)]}\n${S.brandLine}`
-      );
-    },
-  },
-  {
-    name: 'magic8',
-    aliases: ['magicconch', 'conch'],
-    category: 'fun',
-    description: 'Ask the magic conch shell',
-    execute: async (ctx) => {
-      const answers = [
-        'Maybe someday.',
-        'Try again later.',
-        'I don\'t think so.',
-        'Yes.',
-        'No.',
-        'The answer is buried in sand.',
-        'The wind says yes.',
-        'The spirits say no.',
-        'Reply hazy, try again.',
-        'Ask again when the moon is full.',
-        'The conch has spoken. The answer is yes.',
-        'The conch has spoken. The answer is no.',
-        'The conch is sleeping. Come back later.',
-        'Absolutely not.',
-        'Without a doubt.',
-      ];
-      const q = ctx.args.join(' ') || 'What does the future hold?';
-      await reply(ctx.sock, ctx,
-        `${S.brandLine}\n${S.ultraBar}\n${S.sub}  Magic Conch\n${S.heavyBar}\n` +
-        `  ${S.tri} Q ${S.arr}  ${q}\n  ${S.tri} A ${S.arr}  *${answers[Math.floor(Math.random() * answers.length)]}*\n${S.brandLine}`
+        `${S.brandLine}\n${S.sub}  Choose\n${S.heavyBar}\n` +
+        `  ${S.dot} Options ${S.arr} ${options.length}\n` +
+        `  ${S.dot} Picked ${S.arr} *${chosen}*\n${S.brandLine}`
       );
     },
   },

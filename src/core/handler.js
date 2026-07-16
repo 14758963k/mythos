@@ -13,6 +13,7 @@ const store = require('./store');
 const events = require('./events');
 const { reply, react, userCard, unwrapMessage } = require('../helpers/messages');
 const { chat: mistralChat, clearHistory } = require('../helpers/chatbot');
+const ai = require('../helpers/ai');
 const { S } = require('../helpers/formatter');
 const { suggest } = require('../helpers/typo');
 const { bestPhone, matchesOwner } = require('../helpers/jid');
@@ -289,6 +290,17 @@ const handle = async (sock, { messages, type }) => {
 
     // ── antilink check (text only, groups only) ────────────────────
     if (ctx.isGroup && !isResponse) await events.handleMessagesUpsert(sock, msg);
+
+    // ── anti-badword check ─────────────────────────────────────────
+    if (ctx.isGroup && ctx.text && !isResponse) {
+      const badwordHit = await events.checkBadword(sock, msg, store.get('groups'), ctx.text);
+      if (badwordHit) continue;
+    }
+
+    // ── anti-spam check ────────────────────────────────────────────
+    if (ctx.isGroup && !isResponse) {
+      await events.checkSpam(sock, msg, store.get('groups'));
+    }
 
     // ── PM permit (anti-spam in DMs) ──────────────────────────────
     if (!ctx.isGroup && !ctx.fromMe) {

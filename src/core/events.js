@@ -22,13 +22,17 @@ const fmt = (d) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getUTCSeconds ? d.getUTCSeconds() : d.getSeconds())}`;
 };
 
+const toJid = (p) => (typeof p === 'string' ? p : (p?.id || p?.phoneNumber || p?.jid || ''));
+
 const greet = (pushName, jid) => {
-  const num = jid?.split('@')[0]?.split(':')[0] || '?';
+  const j = toJid(jid);
+  const num = j.split('@')[0]?.split(':')[0] || '?';
   return `${S.brandLine}\n${S.ultraBar}\n${S.sub}  Welcome  ${S.arr}  ${pushName || 'New Member'}\n${S.heavyBar}\n  ${S.dot} @${num}\n${S.divider}\n  ${S.heart} Greetings from Mythos.\n  ${S.sub} Reply *${config.bot.prefix}menu* to see what is possible.\n${S.brandLine}`;
 };
 
 const farewell = (pushName, jid) => {
-  const num = jid?.split('@')[0]?.split(':')[0] || '?';
+  const j = toJid(jid);
+  const num = j.split('@')[0]?.split(':')[0] || '?';
   return `${S.brandLine}\n${S.ultraBar}\n${S.sub}  Goodbye  ${S.arr}  ${pushName || 'Member'}\n${S.heavyBar}\n  ${S.dot} @${num}\n${S.divider}\n  ${S.loop} The seats refresh. We continue.\n${S.brandLine}`;
 };
 
@@ -41,7 +45,9 @@ const handleParticipantsUpdate = async (sock, event) => {
       groups[event.id] = { ...g, name: meta.subject };
       store.set('groups', groups);
     }
-    for (const participant of event.participants || []) {
+    for (const raw of event.participants || []) {
+      const participant = toJid(raw);
+      if (!participant) continue;
       const isJoin = event.action === 'add';
       const isLeave = event.action === 'remove';
       const isPromote = event.action === 'promote';
@@ -89,6 +95,72 @@ const handleParticipantsUpdate = async (sock, event) => {
 };
 
 const URL_REGEX = /(https?:\/\/[^\s]+|chat\.whatsapp\.com\/[A-Za-z0-9]+|wa\.me\/[0-9]+|whatsapp\.com\/[A-Za-z0-9]+)/i;
+
+// ── anti-spam tracker ───────────────────────────────────────────────────
+const spamTracker = {}; // { groupJid: { senderJid: [timestamps] } }
+
+const checkSpam = async (sock, msg, groups) => {
+  try {
+    const chatJid = msg.key.remoteJid;
+    const sender = msg.key.participant || msg.key.remoteJid;
+    const g = groups[chatJid];
+    if (!g || !g.antiSpam) return;
+
+    const now = Date.now();
+    const window = (g.spamWindow || 10) * 1000;
+    const limit = g.spamLimit || 5;
+
+    if (!spamTracker[chatJid]) spamTracker[chatJid] = {};
+    if (!spamTracker[chatJid][sender]) spamTracker[chatJid][sender] = [];
+
+    spamTracker[chatJid][sender] = spamTracker[chatJid][sender].filter(t => now - t < window);
+    spamTracker[chatJid][sender].push(now);
+
+    if (spamTracker[chatJid][sender].length >= limit) {
+      spamTracker[chatJid][sender] = [];
+      // auto-warn via the warn system
+      if (!g.warnings) g.warnings = {};
+      if (!g.warnings[sender]) g.warnings[sender] = 0;
+      g.warnings[sender]++;
+      const threshold = g.warnThreshold || 3;
+
+      if (g.warnings[sender] >= threshold) {
+        try {
+          await sock.groupParticipantsUpdate(chatJid, [sender], 'remove');
+          await sock.sendMessage(chatJid, { text: `${S.cross} @${sender.split('@')[0]} auto-kicked for spam (${threshold} warnings).`, contextInfo: { mentionedJid: [sender] } });
+        } catch {}
+        delete g.warnings[sender];
+      } else {
+        await sock.sendMessage(chatJid, { text: `${S.warn} @${sender.split('@')[0]} auto-warned for spam (${g.warnings[sender]}/${threshold}).`, contextInfo: { mentionedJid: [sender] } });
+      }
+      groups[chatJid] = g;
+      store.set('groups', groups);
+    }
+  } catch {}
+};
+
+// ── anti-badword checker ────────────────────────────────────────────────
+const checkBadword = async (sock, msg, groups, text) => {
+  try {
+    const chatJid = msg.key.remoteJid;
+    const sender = msg.key.participant || msg.key.remoteJid;
+    const g = groups[chatJid];
+    if (!g || !g.antiBadword || !g.badwords?.length) return;
+    if (msg.key.fromMe) return;
+
+    const lower = text.toLowerCase();
+    const matched = g.badwords.find(w => lower.includes(w));
+    if (matched) {
+      await sock.sendMessage(chatJid, { delete: msg.key }).catch(() => {});
+      await sock.sendMessage(chatJid, {
+        text: `${S.warn} @${sender.split('@')[0]}, that word is not allowed here.`,
+        contextInfo: { mentionedJid: [sender] },
+      });
+      return true;
+    }
+  } catch {}
+  return false;
+};
 
 const handleMessagesUpsert = async (sock, msg) => {
   // antilink is only for group text messages
@@ -333,4 +405,6 @@ module.exports = {
   listReminders,
   trackSelfSent,
   selfSentIds,
+  checkSpam,
+  checkBadword,
 };

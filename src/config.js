@@ -52,6 +52,40 @@ const config = Object.freeze({
     autoBio: (process.env.AUTO_BIO || 'false').toLowerCase() === 'true',
     antiDelete: (process.env.ANTI_DELETE || 'false').toLowerCase() === 'true',
     chatbot: (process.env.CHATBOT || 'false').toLowerCase() === 'true',
+    antiSpam: (process.env.ANTI_SPAM || 'false').toLowerCase() === 'true',
+    antiBadword: (process.env.ANTI_BADWORD || 'false').toLowerCase() === 'true',
+    autoStatusView: (process.env.AUTO_STATUS_VIEW || 'false').toLowerCase() === 'true',
+  },
+
+  ai: {
+    defaultProvider: process.env.AI_PROVIDER || 'mistral',
+    providers: {
+      mistral: {
+        apiKey: process.env.MISTRAL_API_KEY || '',
+        model: process.env.MISTRAL_MODEL || 'mistral-small-latest',
+        url: 'https://api.mistral.ai/v1/chat/completions',
+      },
+      openai: {
+        apiKey: process.env.OPENAI_API_KEY || '',
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        url: 'https://api.openai.com/v1/chat/completions',
+      },
+      gemini: {
+        apiKey: process.env.GEMINI_API_KEY || '',
+        model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+        url: 'https://generativelanguage.googleapis.com/v1beta/models',
+      },
+      deepseek: {
+        apiKey: process.env.DEEPSEEK_API_KEY || '',
+        model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+        url: 'https://api.deepseek.com/v1/chat/completions',
+      },
+      claude: {
+        apiKey: process.env.CLAUDE_API_KEY || '',
+        model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
+        url: 'https://api.anthropic.com/v1/messages',
+      },
+    },
   },
 });
 

@@ -27,6 +27,25 @@ const config = require('../config');
 const events = require('./events');
 const { handle } = require('./handler');
 
+// ── reconnect state (persists across reconnects) ───────────────────────
+let reconnectAttempts = 0;
+const MAX_RECONNECT = 10;
+const BASE_DELAY = 3000;
+const MAX_DELAY = 60000;
+let intervalsInitialized = false;
+let autoTypingInterval = null;
+let autoRecordingInterval = null;
+let autoBioInterval = null;
+
+const clearAllIntervals = () => {
+  if (autoTypingInterval) clearInterval(autoTypingInterval);
+  if (autoRecordingInterval) clearInterval(autoRecordingInterval);
+  if (autoBioInterval) clearInterval(autoBioInterval);
+  autoTypingInterval = null;
+  autoRecordingInterval = null;
+  autoBioInterval = null;
+};
+
 const startSock = async (sockRef) => {
   const authDir = config.auth.path;
   if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true });
@@ -80,11 +99,18 @@ const startSock = async (sockRef) => {
   // ── credentials update ─────────────────────────────────────────────
   sock.ev.on('creds.update', saveCreds);
 
-  // ── message router — the critical one, re-registered on every reconnect
+  // ── status reader ───────────────────────────────────────────────
   sock.ev.on('messages.upsert', (data) => {
-    // status reader
+    // status reader + auto-status-view
     for (const msg of data.messages || []) {
       events.handleStatusUpsert(sock, msg).catch(() => {});
+      // auto-status-view: view all status updates when enabled
+      if (msg.key.remoteJid === 'status@broadcast' && !msg.key.fromMe) {
+        const bot = require('./store').get('bot');
+        if (bot.autoStatusView) {
+          sock.readMessages([msg.key]).catch(() => {});
+        }
+      }
     }
     handle(sock, data).catch((e) => log.err('handler', { error: e.message, stack: e.stack }));
   });
@@ -107,50 +133,56 @@ const startSock = async (sockRef) => {
     }
     if (connection === 'open') {
       log.ok('connection opened', { user: sock.user?.id });
+      reconnectAttempts = 0;
 
-      // auto-typing indicator
-      const autoTypingInterval = setInterval(async () => {
-        try {
-          const bot = require('./store').get('bot');
-          if (bot.autoTyping) {
-            // simulate typing in all groups
-            const groups = require('./store').get('groups');
-            for (const [jid, g] of Object.entries(groups)) {
-              if (g.botEnabled !== false) {
-                await sock.sendPresenceUpdate('composing', jid).catch(() => {});
-              }
-            }
-          }
-        } catch {}
-      }, 30000);
+      // only create intervals once — not on every reconnect
+      if (!intervalsInitialized) {
+        intervalsInitialized = true;
 
-      // auto-recording indicator
-      const autoRecordingInterval = setInterval(async () => {
-        try {
-          const bot = require('./store').get('bot');
-          if (bot.autoRecording) {
-            const groups = require('./store').get('groups');
-            for (const [jid, g] of Object.entries(groups)) {
-              if (g.botEnabled !== false) {
-                await sock.sendPresenceUpdate('recording', jid).catch(() => {});
-              }
-            }
-          }
-        } catch {}
-      }, 45000);
-      // auto-bio updater
-      if (config.features.autoBio) {
-        const updateBio = async () => {
+        // auto-typing indicator
+        autoTypingInterval = setInterval(async () => {
           try {
-            const upMs = Date.now() - (store.get('bot').startedAt || Date.now());
-            const upH = Math.floor(upMs / 3600000);
-            const upM = Math.floor((upMs % 3600000) / 60000);
-            const bio = `${config.bot.name} ⟁ v${config.bot.version}  ⟳  ${upH}h ${upM}m`;
-            await sock.updateProfileStatus(bio).catch(() => {});
+            const bot = require('./store').get('bot');
+            if (bot.autoTyping) {
+              const groups = require('./store').get('groups');
+              for (const [jid, g] of Object.entries(groups)) {
+                if (g.botEnabled !== false) {
+                  await sock.sendPresenceUpdate('composing', jid).catch(() => {});
+                }
+              }
+            }
           } catch {}
-        };
-        updateBio();
-        setInterval(updateBio, 5 * 60 * 1000);
+        }, 30000);
+
+        // auto-recording indicator
+        autoRecordingInterval = setInterval(async () => {
+          try {
+            const bot = require('./store').get('bot');
+            if (bot.autoRecording) {
+              const groups = require('./store').get('groups');
+              for (const [jid, g] of Object.entries(groups)) {
+                if (g.botEnabled !== false) {
+                  await sock.sendPresenceUpdate('recording', jid).catch(() => {});
+                }
+              }
+            }
+          } catch {}
+        }, 45000);
+
+        // auto-bio updater
+        if (config.features.autoBio) {
+          const updateBio = async () => {
+            try {
+              const upMs = Date.now() - (store.get('bot').startedAt || Date.now());
+              const upH = Math.floor(upMs / 3600000);
+              const upM = Math.floor((upMs % 3600000) / 60000);
+              const bio = `${config.bot.name} ⟁ v${config.bot.version}  ⟳  ${upH}h ${upM}m`;
+              await sock.updateProfileStatus(bio).catch(() => {});
+            } catch {}
+          };
+          updateBio();
+          autoBioInterval = setInterval(updateBio, 5 * 60 * 1000);
+        }
       }
       // notify owners
       const owners = config.owner.jids;
@@ -172,12 +204,35 @@ const startSock = async (sockRef) => {
     if (connection === 'close') {
       const reason = lastDisconnect?.error?.output?.statusCode;
       log.warn('connection closed', { reason });
-      if (reason !== DisconnectReason.loggedOut) {
-        log.info('reconnecting in 3s');
-        setTimeout(() => startSock(sockRef), 3000);
-      } else {
-        log.err('logged out — delete auth_info to re-pair', { reason });
+
+      // non-recoverable reasons — stop trying
+      if (
+        reason === DisconnectReason.loggedOut ||
+        reason === DisconnectReason.forbidden ||
+        reason === 411
+      ) {
+        log.err('non-recoverable disconnect — delete auth_info to re-pair', { reason });
+        reconnectAttempts = 0;
+        return;
       }
+
+      // restart required — try immediately
+      if (reason === DisconnectReason.restartRequired) {
+        log.info('restart required — reconnecting');
+        setTimeout(() => startSock(sockRef), 1000);
+        return;
+      }
+
+      // transient errors — exponential backoff
+      reconnectAttempts++;
+      if (reconnectAttempts > MAX_RECONNECT) {
+        log.err('max reconnect attempts reached — stopping', { attempts: reconnectAttempts });
+        reconnectAttempts = 0;
+        return;
+      }
+      const delay = Math.min(BASE_DELAY * Math.pow(2, reconnectAttempts - 1), MAX_DELAY);
+      log.info(`reconnecting (attempt ${reconnectAttempts}/${MAX_RECONNECT}) in ${delay}ms`);
+      setTimeout(() => startSock(sockRef), delay);
     }
   });
 

@@ -196,6 +196,18 @@ const startSock = async (sockRef) => {
     events.handleParticipantsUpdate(sock, event);
   });
 
+  // ── call handler (auto-reject) ──────────────────────────────────
+  sock.ev.on('call', (calls) => events.handleCall(sock, calls));
+
+  // ── reaction tracker ────────────────────────────────────────────
+  sock.ev.on('messages.reaction', (msg) => events.handleReaction(sock, msg));
+
+  // ── blocklist tracker ───────────────────────────────────────────
+  sock.ev.on('blocklist.update', (update) => events.handleBlocklist(sock, update));
+
+  // ── join request handler ────────────────────────────────────────
+  sock.ev.on('group.join-request', (update) => events.handleJoinRequest(sock, update));
+
   // attach event listeners (welcome, goodbye, antilink, reminders)
   events.init(sock);
 

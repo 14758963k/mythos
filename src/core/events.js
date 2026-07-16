@@ -251,6 +251,71 @@ const autoReact = async (sock, msg) => {
   } catch {}
 };
 
+// ── call handler ─────────────────────────────────────────────────────────────
+const handleCall = async (sock, call) => {
+  try {
+    const bot = store.get('bot');
+    if (!bot.rejectCalls) return;
+    for (const c of call) {
+      if (c.status === 'offer') {
+        await sock.rejectCall(c.id, c.from).catch(() => {});
+        log.evt('call rejected', { from: c.from, type: c.isVideo ? 'video' : 'voice' });
+      }
+    }
+  } catch {}
+};
+
+// ── reaction tracker ─────────────────────────────────────────────────────────
+const reactionCounts = {};
+
+const handleReaction = async (sock, msg) => {
+  try {
+    const reaction = msg.reaction;
+    if (!reaction || !reaction.text) return;
+    const jid = msg.key.remoteJid;
+    const user = msg.key.participant || msg.key.remoteJid;
+    const key = `${jid}:${user}:${reaction.text}`;
+    if (!reactionCounts[key]) reactionCounts[key] = { count: 0, emoji: reaction.text, user, jid };
+    reactionCounts[key].count++;
+  } catch {}
+};
+
+const getReactionLeaderboard = (jid, limit = 10) => {
+  const entries = Object.values(reactionCounts)
+    .filter(e => e.jid === jid)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+  return entries;
+};
+
+// ── blocklist tracker ────────────────────────────────────────────────────────
+const handleBlocklist = async (sock, update) => {
+  try {
+    const bot = store.get('bot');
+    if (!bot.blockedUsers) bot.blockedUsers = [];
+    if (update.type === 'add') {
+      for (const jid of update.blocklist || []) {
+        if (!bot.blockedUsers.includes(jid)) bot.blockedUsers.push(jid);
+      }
+    } else if (update.type === 'remove') {
+      bot.blockedUsers = bot.blockedUsers.filter(jid => !(update.blocklist || []).includes(jid));
+    }
+    store.set('bot', bot);
+  } catch {}
+};
+
+// ── join request handler ─────────────────────────────────────────────────────
+const handleJoinRequest = async (sock, update) => {
+  try {
+    const bot = store.get('bot');
+    if (!bot.autoApproveJoin) return;
+    const { jid, participant } = update;
+    if (!jid || !participant) return;
+    await sock.groupRequestParticipantsUpdate(jid, [participant], 'approve').catch(() => {});
+    log.evt('auto-approved join', { group: jid, user: participant });
+  } catch {}
+};
+
 module.exports = {
   init,
   handleParticipantsUpdate,
@@ -258,6 +323,11 @@ module.exports = {
   handleDelete,
   handleStatusUpsert,
   autoReact,
+  handleCall,
+  handleReaction,
+  getReactionLeaderboard,
+  handleBlocklist,
+  handleJoinRequest,
   addReminder,
   cancelReminder,
   listReminders,

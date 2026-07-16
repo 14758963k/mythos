@@ -55,6 +55,7 @@ const startSock = async (sockRef) => {
 
   const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
 
+  const isFreshAuth = !state.creds.registered;
   const sock = makeWASocket({
     version,
     logger: pino({ level: config.logLevel }),
@@ -63,13 +64,30 @@ const startSock = async (sockRef) => {
       keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })),
     },
     browser: Browsers.ubuntu('Mythos Ascendant'),
-    printQRInTerminal: false,
+    printQRInTerminal: !config.auth.pairing,
     generateHighQualityLinkPreview: true,
     cachedGroupMetadata: async (jid) => groupCache.get(jid),
     markOnlineOnConnect: true,
     getMessage: async () => undefined,
     keepAliveIntervalMs: 25000,
   });
+
+  // ── pairing code (fresh auth with PAIRING_NUMBER set) ─────────────
+  if (isFreshAuth && config.auth.pairing) {
+    try {
+      const code = await sock.requestPairingCode(config.auth.number);
+      console.log('\n╔═══════════════════════════════════════╗');
+      console.log('║       ⟁ MYTHOS PAIRING CODE ⟁        ║');
+      console.log('╠═══════════════════════════════════════╣');
+      console.log(`║  ${code}  ║`);
+      console.log('╠═══════════════════════════════════════╣');
+      console.log('║  Open WhatsApp → Linked Devices       ║');
+      console.log('║  → Link a Device → Enter code above   ║');
+      console.log('╚═══════════════════════════════════════╝\n');
+    } catch (e) {
+      log.err('pairing code request failed', { error: e.message });
+    }
+  }
 
   sockRef.current = sock;
   sock._groupCache = groupCache;

@@ -21,7 +21,7 @@ module.exports = {
       if (!match) return reply(ctx.sock, ctx, `${S.cross}  No results found.`);
       const url = match[1];
       const { data: audioBuf } = await axios.get(url, { responseType: 'arraybuffer' });
-      await sendDocument(ctx.sock, ctx.from, { document: Buffer.from(audioBuf), fileName: `${query}.mp3`, mimetype: 'audio/mpeg', caption: `${S.brand}  *${query}*` }, { quoted: ctx.msg });
+      await sendDocument(ctx.sock, ctx.from, { document: Buffer.from(audioBuf), fileName: `${query}.mp3`, mimetype: 'audio/mpeg', caption: `${S.brand}  *${query}*\n${S.sub}  Format: MP3` }, { quoted: ctx.msg });
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross}  Play failed: ${e.message}`);
     }

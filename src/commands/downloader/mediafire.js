@@ -21,7 +21,7 @@ module.exports = {
         return reply(ctx.sock, ctx, `${S.cross}  Could not fetch the file.`);
       }
       const fileBuf = (await axios.get(data.result.url, { responseType: 'arraybuffer' })).data;
-      await sendDocument(ctx.sock, ctx.from, { document: Buffer.from(fileBuf), fileName: data.result.name || 'download', mimetype: data.result.mime || 'application/octet-stream', caption: `${S.brand}  ${data.result.name || 'File'}` }, { quoted: ctx.msg });
+      await sendDocument(ctx.sock, ctx.from, { document: Buffer.from(fileBuf), fileName: data.result.name || 'download', mimetype: data.result.mime || 'application/octet-stream', caption: `${S.brand}  *${data.result.name || 'File'}*\n${S.sub}  Source: MediaFire` }, { quoted: ctx.msg });
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross}  MediaFire failed: ${e.message}`);
     }

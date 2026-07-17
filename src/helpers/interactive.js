@@ -135,9 +135,9 @@ const startupCard = ({ pushName, participant, isOwner, totalCommands, startedAt,
     `⟁ *${S.lBrack} BOT STATUS ${S.rBrack}* ⟁\n` +
     `  ${S.botMark} Botname   ${S.arr}  ${config.bot.name}\n` +
     `  ${S.featMark} Features  ${S.arr}  ${totalCommands} commands\n` +
-    `  ${S.engineMark} Engine    ${S.arr}  WhiskeySockets Baileys\n` +
-    `  ${S.runtimeMark} Runtime   ${S.arr}  ${up}\n` +
-    `  ${S.stackMark} Stack     ${S.arr}  Node.js, baileys_helpers\n` +
+  `  ${S.engineMark} Engine    ${S.arr}  @itsliaaa/baileys\n` +
+  `  ${S.runtimeMark} Runtime   ${S.arr}  ${up}\n` +
+  `  ${S.stackMark} Stack     ${S.arr}  Node.js\n` +
     `  ${S.versionMark} Version   ${S.arr}  ${config.bot.version}\n` +
     `\n` +
     `${S.heavyBar}\n` +

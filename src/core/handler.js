@@ -37,7 +37,6 @@ const CATEGORY_REACTIONS = {
   search: '⌕',
   info: '◈',
   games: '🎮',
-  audio: '♪',
   misc: '·',
 };
 
@@ -241,7 +240,7 @@ const extractResponseId = (msg, ctype, fallbackText) => {
 const tick = '\u2713';
 
 const handle = async (sock, { messages, type }) => {
-  if (type !== 'notify' && type !== 'append') return;
+  if (type !== 'notify') return;
   for (const msg of messages) {
     if (!msg.message) continue;
     // unwrap ephemeral / viewOnce for content type detection
@@ -367,7 +366,7 @@ const handle = async (sock, { messages, type }) => {
     if (!parsed) {
       // ── chatbot: respond to mentions (groups) or DMs ────────────
       const bot = store.get('bot');
-      if (bot.chatbot && ctx.text && !ctx.fromMe) {
+      if (false && bot.chatbot && ctx.text && !ctx.fromMe) {
         const isMentioned = ctx.mentionedJid?.some((j) => {
           const botNum = sock.user?.id?.split(':')[0]?.replace('@s.whatsapp.net', '');
           return j === botNum || j === sock.user?.id;

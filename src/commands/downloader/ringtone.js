@@ -22,7 +22,7 @@ module.exports = {
       }
       const ring = data.results[0];
       const { data: audioBuf } = await axios.get(ring.download, { responseType: 'arraybuffer' });
-      await sendDocument(ctx.sock, ctx.from, { document: Buffer.from(audioBuf), fileName: `${query}.mp3`, mimetype: 'audio/mpeg', caption: `${S.brand}  *${ring.title}*` }, { quoted: ctx.msg });
+      await sendDocument(ctx.sock, ctx.from, { document: Buffer.from(audioBuf), fileName: `${query}.mp3`, mimetype: 'audio/mpeg', caption: `${S.brand}  *${ring.title}*\n${S.sub}  Format: MP3` }, { quoted: ctx.msg });
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross}  Ringtone failed: ${e.message}`);
     }

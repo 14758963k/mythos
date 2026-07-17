@@ -22,7 +22,7 @@ module.exports = {
       execSync(`yt-dlp -x --audio-format mp3 -o "${tmpOut}" "${url}"`, { timeout: 120000 });
       const buf = fs.readFileSync(tmpOut);
       fs.unlinkSync(tmpOut);
-      await sendDocument(ctx.sock, ctx.from, { document: buf, fileName: 'audio.mp3', mimetype: 'audio/mpeg', caption: `${S.brand}  YouTube to MP3 converted` }, { quoted: ctx.msg });
+      await sendDocument(ctx.sock, ctx.from, { document: buf, fileName: 'audio.mp3', mimetype: 'audio/mpeg', caption: `${S.brand}  *YouTube to MP3*\n${S.sub}  Format: MP3` }, { quoted: ctx.msg });
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross}  YTMP3 failed: ${e.message}`);
     }

@@ -2,7 +2,7 @@
  * .exec — evaluate code via JDoodle API.
  */
 
-const { reply } = require('../../helpers/messages');
+const { reply, sendCodeBlock } = require('../../helpers/messages');
 const { S } = require('../../helpers/formatter');
 const axios = require('axios');
 
@@ -29,10 +29,14 @@ module.exports = {
         clientSecret: '741b8b6a57446508285bb5893f106df3e20f1226fa3858a1f2aba813799d4734',
       });
       const output = (data.output || 'No output').slice(0, 3000);
-      await reply(ctx.sock, ctx,
-        `${S.brandLine}\n${S.ultraBar}\n${S.sub}  Execution Result  ${S.arr}  ${lang.toUpperCase()}\n${S.heavyBar}\n` +
-        `\`\`\`\n${output}\n\`\`\`\n${S.brandLine}`
-      );
+      const langName = { js: 'javascript', py: 'python', python: 'python', java: 'java', c: 'c', cpp: 'cpp', rb: 'ruby', go: 'go', ts: 'typescript' };
+      await sendCodeBlock(ctx.sock, ctx.from, {
+        headerText: `## Execution Result — ${lang.toUpperCase()}`,
+        code: output,
+        language: langName[lang] || 'javascript',
+        footerText: `Executed via JDoodle`,
+        quoted: ctx.msg,
+      });
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross}  Execution failed: ${e.message}`);
     }

@@ -21,7 +21,7 @@ module.exports = {
         return reply(ctx.sock, ctx, `${S.cross}  Could not fetch the video.`);
       }
       const { data: videoBuf } = await axios.get(data.result, { responseType: 'arraybuffer' });
-      await sendVideo(ctx.sock, ctx.from, { video: Buffer.from(videoBuf), caption: `${S.brand}  Facebook video` }, { quoted: ctx.msg });
+      await sendVideo(ctx.sock, ctx.from, { video: Buffer.from(videoBuf), caption: `${S.brand}  *Facebook Video*\n${S.sub}  Source: facebook.com` }, { quoted: ctx.msg });
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross}  Facebook failed: ${e.message}`);
     }

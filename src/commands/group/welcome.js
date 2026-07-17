@@ -24,7 +24,7 @@ module.exports = {
         text:
           `${S.brandLine}\n${S.ultraBar}\n${S.sub}  Welcome  ${S.arr}  ${on ? 'ON' : 'OFF'}\n${S.heavyBar}\n` +
           `  ${S.sqr} Status   ${S.arr}  ${on ? S.check : S.cross}\n  ${S.sqr} Current  ${S.arr}  ${cur}\n` +
-          `${S.divider}\n  ${S.sub}  ${ctx.prefix}welcome <text>  to set\n  ${S.sub}  ${ctx.prefix}welcome off  to disable\n  ${S.sub}  ${ctx.sub} Variables: @user, @mention\n${S.brandLine}`,
+          `${S.divider}\n  ${S.sub}  ${ctx.prefix}welcome <text>  to set\n  ${S.sub}  ${ctx.prefix}welcome off  to disable\n  ${S.sub}  Variables: @user, @mention\n${S.brandLine}`,
         buttons: [
           { id: `${ctx.prefix}welcome off`, text: '⏸ Turn off' },
           { id: `${ctx.prefix}welcome Welcome @user to Mythos`, text: '↺ Default' },

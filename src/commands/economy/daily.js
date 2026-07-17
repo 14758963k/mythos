@@ -3,7 +3,7 @@
  */
 
 const { reply } = require('../../helpers/messages');
-const { S } = require('../../helpers/formatter');
+const { S, header, row, footer } = require('../../helpers/formatter');
 const store = require('../../core/store');
 
 const DAILY_AMOUNT = 500;
@@ -22,12 +22,22 @@ module.exports = {
       const remaining = 24 * 60 * 60 * 1000 - (now - last);
       const hours = Math.floor(remaining / 3600000);
       const mins = Math.floor((remaining % 3600000) / 60000);
-      return reply(ctx.sock, ctx, `${S.warn}  Already claimed.\n  ${S.sub}  Next in ${hours}h ${mins}m`);
+      return reply(ctx.sock, ctx,
+        `${header('Daily Reward')}\n\n` +
+        `${S.sqr} Already claimed\n` +
+        `${S.sub} Next in ${hours}h ${mins}m\n\n` +
+        `${footer()}`
+      );
     }
     const { addCoins } = require('../../helpers/economy');
     const eco = addCoins(userId, DAILY_AMOUNT);
     lastDaily[userId] = now;
     store.set('lastDaily', lastDaily);
-    await reply(ctx.sock, ctx, `${S.brand}  Daily reward claimed!\n  ${S.sub}  +${DAILY_AMOUNT} coins\n  ${S.sub}  Wallet: ${eco.wallet.toLocaleString()} coins`);
+    await reply(ctx.sock, ctx,
+      `${header('Daily Reward')}\n\n` +
+      `${row('Claimed', `+${DAILY_AMOUNT} coins`)}\n` +
+      `${row('Wallet', `${eco.wallet.toLocaleString()} coins`)}\n\n` +
+      `${footer()}`
+    );
   },
 };

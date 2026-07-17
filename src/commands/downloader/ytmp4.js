@@ -22,7 +22,7 @@ module.exports = {
       execSync(`yt-dlp -f "best[ext=mp4]" -o "${tmpOut}" "${url}"`, { timeout: 120000 });
       const buf = fs.readFileSync(tmpOut);
       fs.unlinkSync(tmpOut);
-      await sendVideo(ctx.sock, ctx.from, { video: buf, caption: `${S.brand}  YouTube MP4 downloaded` }, { quoted: ctx.msg });
+      await sendVideo(ctx.sock, ctx.from, { video: buf, caption: `${S.brand}  *YouTube MP4*\n${S.sub}  Format: MP4` }, { quoted: ctx.msg });
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross}  YTMP4 failed: ${e.message}`);
     }

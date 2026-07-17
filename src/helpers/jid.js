@@ -93,6 +93,21 @@ const matchesOwner = (jid, ownerJids) => {
   });
 };
 
+/**
+ * Resolve a JID (phone or LID) to both formats using the fork's findUserId.
+ * Returns { phoneNumber, lid } — lid may be undefined if resolution fails.
+ */
+const findUserId = async (sock, jid) => {
+  try {
+    const digits = jid.replace(/[^0-9]/g, '');
+    if (!digits) return { phoneNumber: jid, lid: undefined };
+    const result = await sock.findUserId(digits);
+    return result || { phoneNumber: jid, lid: undefined };
+  } catch {
+    return { phoneNumber: jid, lid: undefined };
+  }
+};
+
 module.exports = {
   isJidGroup,
   isJidUser,
@@ -104,4 +119,5 @@ module.exports = {
   senderJid,
   groupJid,
   matchesOwner,
+  findUserId,
 };

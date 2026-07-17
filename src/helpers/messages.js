@@ -456,6 +456,90 @@ const sendContact = async (sock, jid, { contacts, quoted }) => {
   }, quoted ? { quoted } : {});
 };
 
+/** Send an album (multiple images/videos in one message). */
+const sendAlbum = async (sock, jid, { media, quoted }) => {
+  return sock.sendMessage(jid, {
+    album: media,
+  }, quoted ? { quoted } : {});
+};
+
+/** Send a rich response with submessages (text, code, tables). */
+const sendRichResponse = async (sock, jid, { disclaimerText, richResponse, quoted }) => {
+  return sock.sendMessage(jid, {
+    disclaimerText: disclaimerText || '',
+    richResponse,
+  }, quoted ? { quoted } : {});
+};
+
+/** Send a code block message with syntax highlighting. */
+const sendCodeBlock = async (sock, jid, { headerText, code, language, footerText, quoted }) => {
+  return sock.sendMessage(jid, {
+    disclaimerText: '',
+    headerText: headerText || '',
+    contentText: '---',
+    code,
+    language: language || 'javascript',
+    footerText: footerText || '',
+  }, quoted ? { quoted } : {});
+};
+
+/** Send a table message. */
+const sendTable = async (sock, jid, { headerText, title, table, noHeading, footerText, quoted }) => {
+  return sock.sendMessage(jid, {
+    disclaimerText: '',
+    headerText: headerText || '',
+    contentText: '---',
+    title: title || '',
+    table,
+    noHeading: noHeading || false,
+    footerText: footerText || '',
+  }, quoted ? { quoted } : {});
+};
+
+/** Send a product message with price and image. */
+const sendProduct = async (sock, jid, { image, body, footer, product, businessOwnerJid, quoted }) => {
+  return sock.sendMessage(jid, {
+    image,
+    body: body || '',
+    footer: footer || `${S.brand} Mythos ⟁ Ascendant`,
+    product,
+    businessOwnerJid: businessOwnerJid || '0@s.whatsapp.net',
+  }, quoted ? { quoted } : {});
+};
+
+/** Send a WhatsApp event. */
+const sendEvent = async (sock, jid, { event, quoted }) => {
+  return sock.sendMessage(jid, { event }, quoted ? { quoted } : {});
+};
+
+/** Send a group invite card. */
+const sendGroupInvite = async (sock, jid, { groupInvite, quoted }) => {
+  return sock.sendMessage(jid, { groupInvite }, quoted ? { quoted } : {});
+};
+
+/** Send an AI-branded reply with the AI icon. */
+const sendAIReply = async (sock, jid, { text, image, quoted }) => {
+  const msg = { text, ai: true };
+  if (image) msg.image = image;
+  if (image) msg.caption = text;
+  return sock.sendMessage(jid, msg, quoted ? { quoted } : {});
+};
+
+/** Wrap a message in ephemeral (disappearing messages). */
+const sendEphemeral = async (sock, jid, content, quoted) => {
+  return sock.sendMessage(jid, { ...content, ephemeral: true }, quoted ? { quoted } : {});
+};
+
+/** Wrap a message in spoiler. */
+const sendSpoiler = async (sock, jid, content, quoted) => {
+  return sock.sendMessage(jid, { ...content, spoiler: true }, quoted ? { quoted } : {});
+};
+
+/** Send a view-once message. */
+const sendViewOnce = async (sock, jid, content, quoted) => {
+  return sock.sendMessage(jid, { ...content, viewOnce: true }, quoted ? { quoted } : {});
+};
+
 module.exports = {
   reply,
   react,
@@ -482,4 +566,15 @@ module.exports = {
   sendInteractiveMessage,
   sendInteractiveRelay,
   getButtonArgs,
+  sendAlbum,
+  sendRichResponse,
+  sendCodeBlock,
+  sendTable,
+  sendProduct,
+  sendEvent,
+  sendGroupInvite,
+  sendAIReply,
+  sendEphemeral,
+  sendSpoiler,
+  sendViewOnce,
 };

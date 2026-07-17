@@ -3,7 +3,7 @@
  */
 
 const { reply, sendQuickReply } = require('../../helpers/messages');
-const { S } = require('../../helpers/formatter');
+const { S, header, row, footer } = require('../../helpers/formatter');
 const store = require('../../core/store');
 
 const getWarnings = (groupJid) => {
@@ -87,8 +87,17 @@ module.exports = [
       }
       warnings[target]--;
       saveWarnings(ctx.from, warnings);
+      const groups2 = store.get('groups');
+      const g2 = groups2[ctx.from] || {};
+      const threshold2 = g2.warnThreshold || 3;
+      const count2 = warnings[target];
+      const bar2 = Array.from({ length: threshold2 }, (_, i) => i < count2 ? WARN_ICONS[Math.min(i, WARN_ICONS.length - 1)] : '·').join(' ');
       await reply(ctx.sock, ctx,
-        `${S.check} @${target.split('@')[0]} now has ${warnings[target]} warning(s).`,
+        `${header('Warning Removed')}\n\n` +
+        `${row('User', `@${target.split('@')[0]}`)}\n` +
+        `${row('Warnings', `${count2}/${threshold2}`)}\n` +
+        `  ${S.sqr} ${bar2}\n\n` +
+        `${footer()}`,
         { mentions: [target] }
       );
     },
@@ -149,7 +158,12 @@ module.exports = [
       g.warnThreshold = num;
       groups[ctx.from] = g;
       store.set('groups', groups);
-      await reply(ctx.sock, ctx, `${S.check} Warning threshold set to ${num}.`);
+      await reply(ctx.sock, ctx,
+        `${header('Warning Threshold')}\n\n` +
+        `${row('Threshold', `${num} warnings`)}\n` +
+        `${row('Action', 'Auto-kick')}\n\n` +
+        `${footer()}`
+      );
     },
   },
   {
@@ -183,13 +197,23 @@ module.exports = [
         if (!g.spamWindow) g.spamWindow = 10;
         groups[ctx.from] = g;
         store.set('groups', groups);
-        return reply(ctx.sock, ctx, `${S.check} Anti-spam enabled. ${g.spamLimit} msgs in ${g.spamWindow}s = warning.`);
+        return reply(ctx.sock, ctx,
+          `${header('Anti-Spam')}\n\n` +
+          `${row('Status', `${S.check} Enabled`)}\n` +
+          `${row('Rule', `${g.spamLimit}+ msgs in ${g.spamWindow}s`)}\n` +
+          `${row('Action', 'Auto-warn')}\n\n` +
+          `${footer()}`
+        );
       }
       if (arg === 'off') {
         g.antiSpam = false;
         groups[ctx.from] = g;
         store.set('groups', groups);
-        return reply(ctx.sock, ctx, `${S.check} Anti-spam disabled.`);
+        return reply(ctx.sock, ctx,
+          `${header('Anti-Spam')}\n\n` +
+          `${row('Status', `${S.cross} Disabled`)}\n\n` +
+          `${footer()}`
+        );
       }
       return reply(ctx.sock, ctx, `${S.warn} Use on or off.`);
     },
@@ -212,7 +236,12 @@ module.exports = [
         if (!g.badwords.includes(word)) g.badwords.push(word);
         groups[ctx.from] = g;
         store.set('groups', groups);
-        return reply(ctx.sock, ctx, `${S.check} Added *${word}* to badword list.`);
+        return reply(ctx.sock, ctx,
+          `${header('Anti-Badword')}\n\n` +
+          `${row('Added', `*${word}*`)}\n` +
+          `${row('Total', `${g.badwords.length} word(s)`)}\n\n` +
+          `${footer()}`
+        );
       }
 
       if (arg === 'remove' || arg === 'del') {
@@ -221,7 +250,12 @@ module.exports = [
         if (g.badwords) g.badwords = g.badwords.filter(w => w !== word);
         groups[ctx.from] = g;
         store.set('groups', groups);
-        return reply(ctx.sock, ctx, `${S.check} Removed *${word}* from badword list.`);
+        return reply(ctx.sock, ctx,
+          `${header('Anti-Badword')}\n\n` +
+          `${row('Removed', `*${word}*`)}\n` +
+          `${row('Total', `${(g.badwords || []).length} word(s)`)}\n\n` +
+          `${footer()}`
+        );
       }
 
       if (!arg) {
@@ -242,13 +276,22 @@ module.exports = [
         g.antiBadword = true;
         groups[ctx.from] = g;
         store.set('groups', groups);
-        return reply(ctx.sock, ctx, `${S.check} Anti-badword enabled.`);
+        return reply(ctx.sock, ctx,
+          `${header('Anti-Badword')}\n\n` +
+          `${row('Status', `${S.check} Enabled`)}\n` +
+          `${row('Words', (g.badwords || []).join(', ') || '(none)')}\n\n` +
+          `${footer()}`
+        );
       }
       if (arg === 'off') {
         g.antiBadword = false;
         groups[ctx.from] = g;
         store.set('groups', groups);
-        return reply(ctx.sock, ctx, `${S.check} Anti-badword disabled.`);
+        return reply(ctx.sock, ctx,
+          `${header('Anti-Badword')}\n\n` +
+          `${row('Status', `${S.cross} Disabled`)}\n\n` +
+          `${footer()}`
+        );
       }
       return reply(ctx.sock, ctx, `${S.warn} Use on, off, add <word>, or remove <word>.`);
     },

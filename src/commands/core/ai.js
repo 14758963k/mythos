@@ -3,7 +3,7 @@
  * Supports: .ai, .gpt, .gemini, .deepseek, .claude
  */
 
-const { reply } = require('../../helpers/messages');
+const { reply, sendAIReply } = require('../../helpers/messages');
 const { S } = require('../../helpers/formatter');
 const ai = require('../../helpers/ai');
 
@@ -39,10 +39,12 @@ const createAICommand = (providerOverride) => ({
       const provider = providerOverride || null;
       const response = await ai.chat(ctx.sender, prompt, { provider });
       const provLabel = provider || 'AI';
-      await reply(ctx.sock, ctx,
-        `${S.brandLine}\n${S.ultraBar}\n${S.sub}  ${provLabel.toUpperCase()} ${S.arr} Response\n${S.heavyBar}\n\n` +
-        `  ${response}\n\n${S.brandLine}`
-      );
+      await sendAIReply(ctx.sock, ctx.from, {
+        text:
+          `${S.brandLine}\n${S.ultraBar}\n${S.sub}  ${provLabel.toUpperCase()} ${S.arr} Response\n${S.heavyBar}\n\n` +
+          `  ${response}\n\n${S.brandLine}`,
+        quoted: ctx.msg,
+      });
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross} AI error: ${e.message}`);
     }

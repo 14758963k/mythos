@@ -23,10 +23,10 @@ module.exports = {
       const media = data.result[0];
       if (media.type === 'video') {
         const { data: videoBuf } = await axios.get(media.url, { responseType: 'arraybuffer' });
-        await sendVideo(ctx.sock, ctx.from, { video: Buffer.from(videoBuf), caption: `${S.brand}  Instagram video` }, { quoted: ctx.msg });
+        await sendVideo(ctx.sock, ctx.from, { video: Buffer.from(videoBuf), caption: `${S.brand}  *Instagram Video*\n${S.sub}  Source: instagram.com` }, { quoted: ctx.msg });
       } else {
         const { data: imgBuf } = await axios.get(media.url, { responseType: 'arraybuffer' });
-        await sendImage(ctx.sock, ctx.from, { image: Buffer.from(imgBuf), caption: `${S.brand}  Instagram image` }, { quoted: ctx.msg });
+        await sendImage(ctx.sock, ctx.from, { image: Buffer.from(imgBuf), caption: `${S.brand}  *Instagram Image*\n${S.sub}  Source: instagram.com` }, { quoted: ctx.msg });
       }
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross}  Instagram failed: ${e.message}`);

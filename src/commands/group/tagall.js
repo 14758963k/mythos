@@ -11,18 +11,11 @@ module.exports = {
       await reply(ctx.sock, ctx, `${S.warn} Group-only command.`);
       return;
     }
-    const meta = await ctx.sock.groupMetadata(ctx.from).catch(() => null);
-    if (!meta) {
-      await reply(ctx.sock, ctx, `${S.cross} Could not read group metadata.`);
-      return;
-    }
     const text = ctx.args.join(' ') || 'Attention, everyone.';
-    const participants = meta.participants.map((p) => p.id);
-    const body = `${S.brandLine}\n${S.ultraBar}\n${S.sub}  ${text}\n${S.heavyBar}\n${S.dot} ${participants
-      .map((j) => `@${j.split('@')[0]}`)
-      .join(' ')}\n${S.brandLine}`;
+    const body = `${S.brandLine}\n${S.ultraBar}\n${S.sub}  ${text}\n${S.heavyBar}\n${S.dot} @all\n${S.brandLine}`;
     await ctx.sock.sendMessage(ctx.from, {
       text: body,
+      mentionAll: true,
     }, { quoted: ctx.msg });
   },
 };

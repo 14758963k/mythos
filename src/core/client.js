@@ -15,7 +15,6 @@ const {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   DisconnectReason,
-  makeCacheableSignalKeyStore,
   Browsers,
   delay,
 } = require('@itsliaaa/baileys');
@@ -37,6 +36,7 @@ let intervalsInitialized = false;
 let autoTypingInterval = null;
 let autoRecordingInterval = null;
 let autoBioInterval = null;
+let pairingRequested = false;
 
 const clearAllIntervals = () => {
   if (autoTypingInterval) clearInterval(autoTypingInterval);
@@ -48,6 +48,7 @@ const clearAllIntervals = () => {
 };
 
 const startSock = async (sockRef) => {
+  pairingRequested = false;
   const authDir = config.auth.path;
   if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true });
 
@@ -59,22 +60,13 @@ const startSock = async (sockRef) => {
   const sock = makeWASocket({
     version,
     logger: pino({ level: config.logLevel }),
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })),
-    },
-    browser: Browsers.ubuntu('Mythos Ascendant'),
-    printQRInTerminal: false,
+    auth: state,
+    browser: Browsers.windows('Chrome'),
+    printQRInTerminal: config.auth.printQR && !config.auth.pairing,
     generateHighQualityLinkPreview: true,
     cachedGroupMetadata: async (jid) => groupCache.get(jid),
     markOnlineOnConnect: true,
     getMessage: async () => undefined,
-    keepAliveIntervalMs: 25000,
-    connectTimeoutMs: 60000,
-    defaultQueryTimeoutMs: undefined,
-    retryRequestDelayMs: 250,
-    maxMsgRetryCount: 5,
-    uploadTimeoutMs: 60000,
   });
 
   sockRef.current = sock;
@@ -139,8 +131,10 @@ const startSock = async (sockRef) => {
     log.info('connection.update', { connection, qr: !!qr, reason: lastDisconnect?.error?.output?.statusCode });
 
     // ── pairing code ──────────────────────────────────────────────────
-    // Request pairing code when QR arrives (noise handshake is complete at this point)
-    if (qr && config.auth.pairing && !sock.authState.creds.registered) {
+    // QR event fires AFTER the noise handshake completes — this is the
+    // correct time to request pairing code (not 'connecting').
+    if (qr && config.auth.pairing && !sock.authState.creds.registered && !pairingRequested) {
+      pairingRequested = true;
       try {
         log.info('requesting pairing code for', { number: config.owner.number });
         const code = await sock.requestPairingCode(config.owner.number);
@@ -154,6 +148,7 @@ const startSock = async (sockRef) => {
         console.log('╚═══════════════════════════════════════╝\n');
       } catch (e) {
         log.err('pairing code request failed', { error: e.message });
+        pairingRequested = false;
       }
       return;
     }
@@ -233,11 +228,18 @@ const startSock = async (sockRef) => {
       log.warn('connection closed', { reason });
 
       // non-recoverable reasons — stop trying
+      // 401 after pairing is expected (server forces reconnect), not a real logout
       if (
         reason === DisconnectReason.loggedOut ||
         reason === DisconnectReason.forbidden ||
         reason === 411
       ) {
+        if (reason === DisconnectReason.loggedOut && pairingRequested) {
+          log.info('logged out after pairing attempt — reconnecting');
+          pairingRequested = false;
+          setTimeout(() => startSock(sockRef), 2000);
+          return;
+        }
         log.err('non-recoverable disconnect — delete auth_info to re-pair', { reason });
         reconnectAttempts = 0;
         return;
@@ -257,9 +259,9 @@ const startSock = async (sockRef) => {
         reconnectAttempts = 0;
         return;
       }
-      const delay = Math.min(BASE_DELAY * Math.pow(2, reconnectAttempts - 1), MAX_DELAY);
-      log.info(`reconnecting (attempt ${reconnectAttempts}/${MAX_RECONNECT}) in ${delay}ms`);
-      setTimeout(() => startSock(sockRef), delay);
+      const backoff = Math.min(BASE_DELAY * Math.pow(2, reconnectAttempts - 1), MAX_DELAY);
+      log.info(`reconnecting (attempt ${reconnectAttempts}/${MAX_RECONNECT}) in ${backoff}ms`);
+      setTimeout(() => startSock(sockRef), backoff);
     }
   });
 

@@ -25,9 +25,9 @@ module.exports = {
       const { data: videoBuf } = await axios.get(url, { responseType: 'arraybuffer', timeout: 120000 });
       const isVideo = contentType.startsWith('video/');
       if (isVideo) {
-        await sendVideo(ctx.sock, ctx.from, { video: Buffer.from(videoBuf), caption: `${S.brand}  Video from URL` }, { quoted: ctx.msg });
+        await sendVideo(ctx.sock, ctx.from, { video: Buffer.from(videoBuf), caption: `${S.brand}  *Video from URL*\n${S.sub}  Source: ${new URL(url).hostname}` }, { quoted: ctx.msg });
       } else {
-        await sendDocument(ctx.sock, ctx.from, { document: Buffer.from(videoBuf), fileName: url.split('/').pop() || 'download', mimetype: contentType || 'application/octet-stream', caption: `${S.brand}  File from URL` }, { quoted: ctx.msg });
+        await sendDocument(ctx.sock, ctx.from, { document: Buffer.from(videoBuf), fileName: url.split('/').pop() || 'download', mimetype: contentType || 'application/octet-stream', caption: `${S.brand}  *File from URL*\n${S.sub}  Source: ${new URL(url).hostname}` }, { quoted: ctx.msg });
       }
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross}  Download failed: ${e.message}`);

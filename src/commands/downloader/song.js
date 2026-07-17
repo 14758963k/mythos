@@ -23,7 +23,7 @@ module.exports = {
       execSync(`ffmpeg -y -i "$(yt-dlp -f "bestaudio" -g "${url}")" -acodec libmp3lame "${tmpOut}"`, { timeout: 60000 });
       const buf = fs.readFileSync(tmpOut);
       fs.unlinkSync(tmpOut);
-      await sendDocument(ctx.sock, ctx.from, { document: buf, fileName: 'audio.mp3', mimetype: 'audio/mpeg', caption: `${S.brand}  Audio downloaded` }, { quoted: ctx.msg });
+      await sendDocument(ctx.sock, ctx.from, { document: buf, fileName: 'audio.mp3', mimetype: 'audio/mpeg', caption: `${S.brand}  *Audio Downloaded*\n${S.sub}  Format: MP3` }, { quoted: ctx.msg });
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross}  Song failed: ${e.message}`);
     }

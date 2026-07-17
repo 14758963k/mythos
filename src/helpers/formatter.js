@@ -167,7 +167,6 @@ const S = {
   cross_pat: '✠',
   cross_lor: '✞',
   maltese: '✠',
-  sparkle: '✦',
   sparkle2: '✧',
   sparkle3: '✩',
   fleuron: '✤',

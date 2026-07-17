@@ -24,7 +24,7 @@ module.exports = {
       const imageUrl = pin.image?.original?.url || pin.images?.orig?.url;
       if (!imageUrl) return reply(ctx.sock, ctx, `${S.cross}  Could not get image URL.`);
       const { data: imgBuf } = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-      await sendImage(ctx.sock, ctx.from, { image: Buffer.from(imgBuf), caption: `${S.brand}  *${query}*` }, { quoted: ctx.msg });
+      await sendImage(ctx.sock, ctx.from, { image: Buffer.from(imgBuf), caption: `${S.brand}  *${query}*\n${S.sub}  Source: Pinterest` }, { quoted: ctx.msg });
     } catch (e) {
       await reply(ctx.sock, ctx, `${S.cross}  Pinterest failed: ${e.message}`);
     }

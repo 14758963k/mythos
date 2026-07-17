@@ -1,5 +1,5 @@
 const { reply, sendQuickReply } = require('../../helpers/messages');
-const { S } = require('../../helpers/formatter');
+const { S, progress } = require('../../helpers/formatter');
 const store = require('../../core/store');
 
 module.exports = [
@@ -90,8 +90,7 @@ module.exports = [
       const xp = user.xp || 0;
       const level = Math.floor(xp / 100);
       const nextLevel = (level + 1) * 100;
-      const progress = ((xp % 100) / 100) * 20;
-      const bar = '█'.repeat(Math.floor(progress)) + '░'.repeat(20 - Math.floor(progress));
+      const bar = progress((xp % 100) / 100, 20);
 
       await reply(ctx.sock, ctx,
         `${S.brandLine}\n${S.sub}  Rank\n${S.heavyBar}\n` +
